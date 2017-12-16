@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using RomUtilities;
 using System.Collections;
 using System.IO;
+using System.Numerics;
 
 namespace FF1Lib
 {
@@ -46,9 +47,10 @@ namespace FF1Lib
 			return rom;
 		}
 
-		public void Randomize(Blob seed, Flags flags)
+		public void Randomize(Blob seed, UserFlags userFlags)
 		{
 			var rng = new MT19337(BitConverter.ToUInt32(seed, 0));
+			var flags = ChooseFlags(userFlags, rng);
 
 			EasterEggs();
 			RollCredits();
@@ -212,7 +214,69 @@ namespace FF1Lib
 				ShuffleLeader(rng);
 			}
 
-			WriteSeedAndFlags(Version, seed.ToHex(), EncodeFlagsText(flags));
+			WriteSeedAndFlags(Version, seed.ToHex(), EncodeFlagsText(userFlags));
+		}
+
+		private static Flags ChooseFlags(UserFlags userFlags, MT19337 rng)
+		{
+			return new Flags
+			{
+				Treasures = ChooseFlag(userFlags.Treasures, rng),
+				IncentivizeIceCave = ChooseFlag(userFlags.IncentivizeIceCave, rng),
+				IncentivizeOrdeals = ChooseFlag(userFlags.IncentivizeOrdeals, rng),
+				Shops = ChooseFlag(userFlags.Shops, rng),
+				MagicShops = ChooseFlag(userFlags.MagicShops, rng),
+				MagicLevels = ChooseFlag(userFlags.MagicLevels, rng),
+				MagicPermissions = ChooseFlag(userFlags.MagicPermissions, rng),
+				Rng = ChooseFlag(userFlags.Rng, rng),
+				EnemyScripts = ChooseFlag(userFlags.EnemyScripts, rng),
+				EnemySkillsSpells = ChooseFlag(userFlags.EnemySkillsSpells, rng),
+				EnemyStatusAttacks = ChooseFlag(userFlags.EnemyStatusAttacks, rng),
+				Ordeals = ChooseFlag(userFlags.Ordeals, rng),
+
+				EarlyRod = ChooseFlag(userFlags.EarlyRod, rng),
+				EarlyCanoe = ChooseFlag(userFlags.EarlyCanoe, rng),
+				EarlyOrdeals = ChooseFlag(userFlags.EarlyOrdeals, rng),
+				EarlyBridge = ChooseFlag(userFlags.EarlyBridge, rng),
+				NoPartyShuffle = userFlags.NoPartyShuffle,
+				SpeedHacks = userFlags.SpeedHacks,
+				IdentifyTreasures = userFlags.IdentifyTreasures,
+				Dash = userFlags.Dash,
+				BuyTen =userFlags.BuyTen,
+
+				HouseMPRestoration = userFlags.HouseMPRestoration,
+				WeaponStats = userFlags.WeaponStats,
+				ChanceToRun = userFlags.ChanceToRun,
+				SpellBugs = userFlags.SpellBugs,
+				EnemyStatusAttackBug = userFlags.EnemyStatusAttackBug,
+
+				FunEnemyNames = ChooseFlag(userFlags.FunEnemyNames, rng),
+				PaletteSwap = ChooseFlag(userFlags.PaletteSwap, rng),
+				TeamSteak = ChooseFlag(userFlags.TeamSteak, rng),
+				ShuffleLeader = ChooseFlag(userFlags.ShuffleLeader, rng),
+				Music = userFlags.Music,
+
+				ForcedPartyMembers = userFlags.ForcedPartyMembers,
+				EnemyScaleFactor = userFlags.EnemyScaleFactor,
+				PriceScaleFactor = userFlags.PriceScaleFactor,
+				ExpMultiplier = userFlags.ExpMultiplier,
+				ExpBonus = userFlags.ExpBonus
+			};
+		}
+
+		private static bool ChooseFlag(UserFlag userFlag, MT19337 rng)
+		{
+			switch (userFlag)
+			{
+				case UserFlag.Disabled:
+					return false;
+				case UserFlag.Enabled:
+					return true;
+				case UserFlag.Random:
+					return rng.Between(0, 1) == 1;
+				default:
+					throw new InvalidOperationException("Unexpected flag state: " + userFlag);
+			}
 		}
 
 		public override bool Validate()
@@ -281,67 +345,62 @@ namespace FF1Lib
 			Data[0x3C04B] = firstLevelRequirement;
 		}
 
-		public static string EncodeFlagsText(Flags flags)
+		public static string EncodeFlagsText(UserFlags userFlags)
 		{
-			var bits = new BitArray(32);
-			int i = 0;
+			var bits = new BigInteger(0);
+			
+			ApplyUserFlag(ref bits, userFlags.Treasures);
+			ApplyUserFlag(ref bits, userFlags.IncentivizeIceCave);
+			ApplyUserFlag(ref bits, userFlags.IncentivizeOrdeals);
+			ApplyUserFlag(ref bits, userFlags.Shops);
+			ApplyUserFlag(ref bits, userFlags.MagicShops);
+			ApplyUserFlag(ref bits, userFlags.MagicLevels);
+			ApplyUserFlag(ref bits, userFlags.MagicPermissions);
+			ApplyUserFlag(ref bits, userFlags.Rng);
+			ApplyUserFlag(ref bits, userFlags.EnemyScripts);
+			ApplyUserFlag(ref bits, userFlags.EnemySkillsSpells);
+			ApplyUserFlag(ref bits, userFlags.EnemyStatusAttacks);
+			ApplyUserFlag(ref bits, userFlags.Ordeals);
 
-			bits[i++] = flags.Treasures;
-			bits[i++] = flags.IncentivizeIceCave;
-			bits[i++] = flags.IncentivizeOrdeals;
-			bits[i++] = flags.Shops;
-			bits[i++] = flags.MagicShops;
-			bits[i++] = flags.MagicLevels;
-			bits[i++] = flags.MagicPermissions;
-			bits[i++] = flags.Rng;
-			bits[i++] = flags.EnemyScripts;
-			bits[i++] = flags.EnemySkillsSpells;
-			bits[i++] = flags.EnemyStatusAttacks;
-			bits[i++] = flags.Ordeals;
+			ApplyUserFlag(ref bits, userFlags.EarlyRod);
+			ApplyUserFlag(ref bits, userFlags.EarlyCanoe);
+			ApplyUserFlag(ref bits, userFlags.EarlyOrdeals);
+			ApplyUserFlag(ref bits, userFlags.EarlyBridge);
+			ApplyFlag(ref bits, userFlags.NoPartyShuffle);
+			ApplyFlag(ref bits, userFlags.SpeedHacks);
+			ApplyFlag(ref bits, userFlags.IdentifyTreasures);
+			ApplyFlag(ref bits, userFlags.Dash);
+			ApplyFlag(ref bits, userFlags.BuyTen);
 
-			bits[i++] = flags.EarlyRod;
-			bits[i++] = flags.EarlyCanoe;
-			bits[i++] = flags.EarlyOrdeals;
-			bits[i++] = flags.EarlyBridge;
-			bits[i++] = flags.NoPartyShuffle;
-			bits[i++] = flags.SpeedHacks;
-			bits[i++] = flags.IdentifyTreasures;
-			bits[i++] = flags.Dash;
-			bits[i++] = flags.BuyTen;
+			ApplyFlag(ref bits, userFlags.HouseMPRestoration);
+			ApplyFlag(ref bits, userFlags.WeaponStats);
+			ApplyFlag(ref bits, userFlags.ChanceToRun);
+			ApplyFlag(ref bits, userFlags.SpellBugs);
+			ApplyFlag(ref bits, userFlags.EnemyStatusAttackBug);
 
-			bits[i++] = flags.HouseMPRestoration;
-			bits[i++] = flags.WeaponStats;
-			bits[i++] = flags.ChanceToRun;
-			bits[i++] = flags.SpellBugs;
-			bits[i++] = flags.EnemyStatusAttackBug;
+			ApplyUserFlag(ref bits, userFlags.FunEnemyNames);
+			ApplyUserFlag(ref bits, userFlags.PaletteSwap);
+			ApplyUserFlag(ref bits, userFlags.TeamSteak);
+			ApplyUserFlag(ref bits, userFlags.ShuffleLeader);
+			ApplyState(ref bits, (int)userFlags.Music, 4);
 
-			bits[i++] = flags.FunEnemyNames;
-			bits[i++] = flags.PaletteSwap;
-			bits[i++] = flags.TeamSteak;
-			bits[i++] = flags.ShuffleLeader;
-			bits[i++] = flags.Music == MusicShuffle.Standard || flags.Music == MusicShuffle.MusicDisabled;
-			bits[i++] = flags.Music == MusicShuffle.Nonsensical || flags.Music == MusicShuffle.MusicDisabled;
+			ApplyState(ref bits, SliderToBase64((int)(userFlags.PriceScaleFactor * 10.0)) - 10, 41);
+			ApplyState(ref bits, SliderToBase64((int)(userFlags.EnemyScaleFactor * 10.0)) - 10, 41);
+			ApplyState(ref bits, SliderToBase64((int)(userFlags.ExpMultiplier * 10.0)) - 10, 41);
+			ApplyState(ref bits, SliderToBase64((int)(userFlags.ExpBonus / 10.0)), 51);
+			ApplyState(ref bits, SliderToBase64(userFlags.ForcedPartyMembers), 5);
 
-			System.Diagnostics.Debug.Assert(i == bits.Length, "Unused bits writing flags.");
-
-			var bytes = new byte[4];
-			bits.CopyTo(bytes, 0);
+			var bytes = bits.ToByteArray();
 
 			var text = Convert.ToBase64String(bytes);
 			text = text.TrimEnd('=');
 			text = text.Replace('+', '!');
 			text = text.Replace('/', '%');
 
-			text += SliderToBase64((int)(flags.PriceScaleFactor * 10.0));
-			text += SliderToBase64((int)(flags.EnemyScaleFactor * 10.0));
-			text += SliderToBase64((int)(flags.ExpMultiplier * 10.0));
-			text += SliderToBase64((int)(flags.ExpBonus / 10.0));
-			text += SliderToBase64(flags.ForcedPartyMembers);
-
 			return text;
 		}
 
-		public static Flags DecodeFlagsText(string text)
+		public static UserFlags DecodeFlagsText(string text)
 		{
 			var bitString = text.Substring(0, 6);
 			bitString = bitString.Replace('!', '+');
@@ -349,58 +408,89 @@ namespace FF1Lib
 			bitString += "==";
 
 			var bytes = Convert.FromBase64String(bitString);
-			var bits = new BitArray(bytes);
-			int i = 0;
+			var bits = new BigInteger(bytes);
 
-			Flags flags = new Flags();
-			flags.Treasures = bits[i++];
-			flags.IncentivizeIceCave = bits[i++];
-			flags.IncentivizeOrdeals = bits[i++];
-			flags.Shops = bits[i++];
-			flags.MagicShops = bits[i++];
-			flags.MagicLevels = bits[i++];
-			flags.MagicPermissions = bits[i++];
-			flags.Rng = bits[i++];
-			flags.EnemyScripts = bits[i++];
-			flags.EnemySkillsSpells = bits[i++];
-			flags.EnemyStatusAttacks = bits[i++];
-			flags.Ordeals = bits[i++];
+			return new UserFlags
+			{
+				Treasures = ExtractUserFlag(ref bits),
+				IncentivizeIceCave = ExtractUserFlag(ref bits),
+				IncentivizeOrdeals = ExtractUserFlag(ref bits),
+				Shops = ExtractUserFlag(ref bits),
+				MagicShops = ExtractUserFlag(ref bits),
+				MagicLevels = ExtractUserFlag(ref bits),
+				MagicPermissions = ExtractUserFlag(ref bits),
+				Rng = ExtractUserFlag(ref bits),
+				EnemyScripts = ExtractUserFlag(ref bits),
+				EnemySkillsSpells = ExtractUserFlag(ref bits),
+				EnemyStatusAttacks = ExtractUserFlag(ref bits),
+				Ordeals = ExtractUserFlag(ref bits),
 
-			flags.EarlyRod = bits[i++];
-			flags.EarlyCanoe = bits[i++];
-			flags.EarlyOrdeals = bits[i++];
-			flags.EarlyBridge = bits[i++];
-			flags.NoPartyShuffle = bits[i++];
-			flags.SpeedHacks = bits[i++];
-			flags.IdentifyTreasures = bits[i++];
-			flags.Dash = bits[i++];
-			flags.BuyTen = bits[i++];
+				EarlyRod = ExtractUserFlag(ref bits),
+				EarlyCanoe = ExtractUserFlag(ref bits),
+				EarlyOrdeals = ExtractUserFlag(ref bits),
+				EarlyBridge = ExtractUserFlag(ref bits),
+				NoPartyShuffle = ExtractFlag(ref bits),
+				SpeedHacks = ExtractFlag(ref bits),
+				IdentifyTreasures = ExtractFlag(ref bits),
+				Dash = ExtractFlag(ref bits),
+				BuyTen = ExtractFlag(ref bits),
 
-			flags.HouseMPRestoration = bits[i++];
-			flags.WeaponStats = bits[i++];
-			flags.ChanceToRun = bits[i++];
-			flags.SpellBugs = bits[i++];
-			flags.EnemyStatusAttackBug = bits[i++];
+				HouseMPRestoration = ExtractFlag(ref bits),
+				WeaponStats = ExtractFlag(ref bits),
+				ChanceToRun = ExtractFlag(ref bits),
+				SpellBugs = ExtractFlag(ref bits),
+				EnemyStatusAttackBug = ExtractFlag(ref bits),
 
-			flags.FunEnemyNames = bits[i++];
-			flags.PaletteSwap = bits[i++];
-			flags.TeamSteak = bits[i++];
-			flags.ShuffleLeader = bits[i++];
+				FunEnemyNames = ExtractUserFlag(ref bits),
+				PaletteSwap = ExtractUserFlag(ref bits),
+				TeamSteak = ExtractUserFlag(ref bits),
+				ShuffleLeader = ExtractUserFlag(ref bits),
 
-			flags.Music =
-				bits[i] && !bits[i + 1] ? MusicShuffle.Standard :
-				!bits[i] && bits[i + 1] ? MusicShuffle.Nonsensical :
-				bits[i] && bits[i + 1] ? MusicShuffle.MusicDisabled :
-				MusicShuffle.None;
-			i += 2;
+				Music = (MusicShuffle)ExtractState(ref bits, 4),
 
-			flags.PriceScaleFactor = Base64ToSlider(text[6]) / 10.0;
-			flags.EnemyScaleFactor = Base64ToSlider(text[7]) / 10.0;
-			flags.ExpMultiplier = Base64ToSlider(text[8]) / 10.0;
-			flags.ExpBonus = Base64ToSlider(text[9]) * 10.0;
-			flags.ForcedPartyMembers = Base64ToSlider(text[10]);
+				PriceScaleFactor = (ExtractState(ref bits, 41) + 10) / 10.0,
+				EnemyScaleFactor = (ExtractState(ref bits, 41) + 10) / 10.0,
+				ExpMultiplier = (ExtractState(ref bits, 41) + 10) / 10.0,
+				ExpBonus = ExtractState(ref bits, 51) * 10.0,
+				ForcedPartyMembers = ExtractState(ref bits, 5)
+			};
+		}
 
-			return flags;
+		private static void ApplyState(ref BigInteger bits, int value, int range)
+		{
+			bits *= range;
+			bits += value;
+		}
+
+		private static void ApplyUserFlag(ref BigInteger bits, UserFlag userFlag)
+		{
+			ApplyState(ref bits, (int)userFlag, 3);
+		}
+
+		private static void ApplyFlag(ref BigInteger bits, bool flag)
+		{
+			bits = bits << 1;
+			if (flag)
+			{
+				bits = ++bits;
+			}
+		}
+
+		private static int ExtractState(ref BigInteger bits, int range)
+		{
+			bits = BigInteger.DivRem(bits, range, out BigInteger remainder);
+
+			return (int)remainder;
+		}
+
+		private static UserFlag ExtractUserFlag(ref BigInteger bits)
+		{
+			return (UserFlag)ExtractState(ref bits, 3);
+		}
+
+		private static bool ExtractFlag(ref BigInteger bits)
+		{
+			return ExtractState(ref bits, 2) == 1;
 		}
 
 		private static char SliderToBase64(int value)

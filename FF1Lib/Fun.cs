@@ -9,9 +9,9 @@ namespace FF1Lib
 	public enum MusicShuffle
 	{
 		None = 0,
-		Standard,
-		Nonsensical,
-		MusicDisabled
+		Standard = 1,
+		Nonsensical = 2,
+		MusicDisabled = 3
 	}
 
     public partial class FF1Rom
