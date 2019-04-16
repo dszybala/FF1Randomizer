@@ -28,6 +28,19 @@ namespace FF1RandomizerOnline.Controllers
 
 			var betaString = _environment.IsDevelopment() ? " Beta" : "";
 			ViewData["Title"] = "FF1 Randomizer Online " + FF1Rom.Version + betaString;
+			ViewData["DebugOnlyPreset"] = _environment.IsDevelopment() ? "<a v-on:click.prevent=\"preset('DEBUG')\">DEBUG</a>," : "";
+
+			// Make this alpha only, maybe?
+			ViewData["BuildMeta"] = _environment.IsDevelopment() ?
+				@"<h4>
+					<b>WELCOME TO FFR DEVELOPMENT BUILDS - Good luck! You'll Need it!</b>
+					<ul>
+						<li style=""color: red; font-weight:bold"">DO NOT USE THIS SITE FOR LEAGUE RACES. USE THE PRODUCTION SITE HERE: <a href=""http://finalfantasyrandomizer.com"">http://finalfantasyrandomizer.com</a>.</li>
+						<li>FFR development websites can be updated literally anytime with no agenda or stability guarantees.</li>
+						<li>Features may appear and disappear as different developers work and refine the flags for them.</li>
+					</ul>
+				</h4>" : "";
+
 		}
 
 		public IActionResult Index()
@@ -46,92 +59,9 @@ namespace FF1RandomizerOnline.Controllers
 			var vm = new RandomizeViewModel {
 				File = null,
 				Seed = Blob.Random(4).ToHex(),
-				Flags = new Flags {
-					Treasures = true,
-					NPCItems = true,
-					NPCFetchItems = false,
-					
-					Shops = true,
-					MagicShops = false,
-					MagicLevels = true,
-					MagicPermissions = false,
-					
-					Rng = true,
-					
-					EnemyScripts = false,
-					EnemySkillsSpells = true,
-					EnemyStatusAttacks = true,
-
-					OrdealsPillars = true,
-					TitansTrove = true,
-					
-					MapOpenProgression = false,
-					
-					IncentivizeFreeNPCs = true,
-					IncentivizeFetchNPCs = false,
-					
-					IncentivizeRequiredItems = true,
-					IncentivizeFetchItems = false,
-					
-					IncentivizeMarsh = true,
-					IncentivizeMarshKeyLocked = false,
-					IncentivizeVolcano = false,
-					IncentivizeConeria = true,
-					IncentivizeEarth = true,
-					IncentivizeIceCave = true,
-					IncentivizeOrdeals = true,
-					IncentivizeSeaShrine = false,
-					IncentivizeSkyPalace = false,
-
-					IncentivizeTail = true,
-					IncentivizeMasamune = true,
-					IncentivizeOpal = false,
-					IncentivizeRibbon = false,
-					IncentivizeRibbon2 = false,
-					Incentivize65K = false,
-					IncentivizeBad = false,
-
-					IncentivizeDefCastArmor = false,
-					IncentivizeOffCastArmor = false,
-					IncentivizeOtherCastArmor = false,
-					IncentivizeDefCastWeapon = false,
-					IncentivizeOffCastWeapon = false,
-					IncentivizeOtherCastWeapon = false,
-
-					EarlySarda = true,
-					EarlySage = true,
-					CrownlessOrdeals = true,
-					
-					FreeBridge = false,
-					FreeAirship = false,
-					EasyMode = false,
-					
-					NoPartyShuffle = true,
-					SpeedHacks = true,
-					IdentifyTreasures = true,
-					Dash = true,
-					BuyTen = true,
-
-					HouseMPRestoration = true,
-					WeaponStats = true,
-					ChanceToRun = true,
-					SpellBugs = true,
-					EnemyStatusAttackBug = true,
-
-					ForcedPartyMembers = 0,
-					PriceScaleFactor = 3.0,
-					EnemyScaleFactor = 1.5,
-					ExpMultiplier = 3.0,
-					ExpBonus = 300,
-
-					FunEnemyNames = false,
-					PaletteSwap = false,
-					TeamSteak = false,
-					ModernBattlefield = false,
-					Music = MusicShuffle.None
-				}
+				Flags = Flags.FromJson(System.IO.File.ReadAllText(Path.Combine(Startup.GetPresetsDirectory(), "default.json")))
 			};
-			vm.FlagsInput = vm.Flags.GetString();
+			vm.FlagsInput = Flags.EncodeFlagsText(vm.Flags);
 
 			return View(vm);
 		}
@@ -167,7 +97,7 @@ namespace FF1RandomizerOnline.Controllers
 			var filename = viewModel.File.FileName;
 			var pathIndex = filename.LastIndexOfAny(new[] { '\\', '/' });
 			filename = pathIndex == -1 ? filename : filename.Substring(pathIndex + 1);
-			
+
 			var extensionIndex = filename.LastIndexOf('.');
 			var newFilename = extensionIndex == -1 ? filename : filename.Substring(0, extensionIndex);
 			newFilename = $"{newFilename}_{viewModel.Seed}_{Flags.EncodeFlagsText(viewModel.Flags)}.nes";

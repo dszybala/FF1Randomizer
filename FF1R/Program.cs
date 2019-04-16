@@ -1,24 +1,34 @@
-﻿using System;
-using FF1Lib;
-using RomUtilities;
-
-namespace FF1R
+﻿namespace FF1R
 {
+	using System;
+	using McMaster.Extensions.CommandLineUtils;
+
+	using FFR.Common;
+
+	[Command(Name = "ff1r", Description = "Final Fantasy Randomizer"),
+		Subcommand("presets", typeof(Commands.Presets)),
+		Subcommand("generate", typeof(Commands.Generate))]
+
 	class Program
 	{
-		static void Main(string[] args)
+		readonly VersionInfo version = new VersionInfo(0, 1);
+
+		[Option("--version", Description = "Show version")]
+		public bool Version { get; }
+
+		public static int Main(string[] args)
+			=> CommandLineApplication.Execute<Program>(args);
+
+		int OnExecute(CommandLineApplication app, IConsole console)
 		{
-			var filename = args[0];
-			var argsParts = args[1].Split(new[] { '_' });
-			var seedText = argsParts[0];
-			var flagsText = argsParts[1];
+			if (Version) {
+				console.WriteLine($"{version}");
+				return 0;
+			}
 
-			var rom = new FF1Rom(filename);
-			rom.Randomize(Blob.FromHex(seedText), Flags.DecodeFlagsText(flagsText));
-
-			var fileRoot = filename.Substring(0, filename.LastIndexOf(".", StringComparison.InvariantCulture));
-			var outputFilename = $"{fileRoot}_{seedText}_{flagsText}.nes";
-			rom.Save(outputFilename);
+			console.WriteLine("You must specify a subcommand.");
+			app.ShowHelp();
+			return 1;
 		}
 	}
 }

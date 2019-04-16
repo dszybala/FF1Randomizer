@@ -3,9 +3,124 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using RomUtilities;
+using static FF1Lib.FF1Text;
 
 namespace FF1Lib
 {
+	public enum MapId : byte
+	{
+		Coneria = 0,
+		Pravoka,
+		Elfland,
+		Melmond,
+		CrescentLake,
+		Gaia,
+		Onrac,
+		Lefein,
+		ConeriaCastle1F,
+		ElflandCastle,
+		NorthwestCastle,
+		CastleOfOrdeals1F,
+		TempleOfFiends,
+		EarthCaveB1,
+		GurguVolcanoB1,
+		IceCaveB1,
+		Cardia,
+		BahamutsRoomB1,
+		Waterfall,
+		DwarfCave,
+		MatoyasCave,
+		SardasCave,
+		MarshCaveB1,
+		MirageTower1F,
+		ConeriaCastle2F,
+		CastleOfOrdeals2F,
+		CastleOfOrdeals3F,
+		MarshCaveB2,
+		MarshCaveB3,
+		EarthCaveB2,
+		EarthCaveB3,
+		EarthCaveB4,
+		EarthCaveB5,
+		GurguVolcanoB2,
+		GurguVolcanoB3,
+		GurguVolcanoB4,
+		GurguVolcanoB5,
+		IceCaveB2,
+		IceCaveB3,
+		BahamutsRoomB2,
+		MirageTower2F,
+		MirageTower3F,
+		SeaShrineB5,
+		SeaShrineB4,
+		SeaShrineB3,
+		SeaShrineB2,
+		SeaShrineB1,
+		SkyPalace1F,
+		SkyPalace2F,
+		SkyPalace3F,
+		SkyPalace4F,
+		SkyPalace5F,
+		TempleOfFiendsRevisited1F,
+		TempleOfFiendsRevisited2F,
+		TempleOfFiendsRevisited3F,
+		TempleOfFiendsRevisitedEarth,
+		TempleOfFiendsRevisitedFire,
+		TempleOfFiendsRevisitedWater,
+		TempleOfFiendsRevisitedAir,
+		TempleOfFiendsRevisitedChaos,
+		TitansTunnel
+	}
+
+	public enum Tile
+	{
+		RoomBackLeft = 0x00,
+		RoomBackCenter = 0x01,
+		RoomBackRight = 0x02,
+		RoomLeft = 0x03,
+		RoomCenter = 0x04,
+		RoomRight = 0x05,
+		RoomFrontLeft = 0x06,
+		RoomFrontCenter = 0x07,
+		RoomFrontRight = 0x08,
+		Ladder = 0x09,
+		LadderHole = 0x0A,
+		WarpUp = 0x18,
+		EarthCaveInside = 0x2E,
+		InsideWall = 0x30,
+		FloorSafe = 0x31,
+		HallwayLeft = 0x32,
+		HallwayRight = 0x33,
+		WallLeft = 0x34,
+		WallRight = 0x35,
+		Impassable = 0x3D,
+		Door = 0x36,
+		EarthCaveOOB = 0x38,
+		Doorway = 0x3A,
+		Lava = 0x39,
+		EarthCaveRockA = 0x3E,
+		EarthCaveRockB = 0x3F,
+		MarshCaveOOB = 0x3F,
+		EarthCaveRandomEncounters = 0x41,
+		WaterfallInside = 0x46,
+		WaterfallRandomEncounters = 0x49
+	}
+
+	public enum WarMECHMode
+	{
+		Vanilla,
+		Patrolling,
+		Required
+	}
+
+	public struct NPC
+	{
+		public int Index;
+		public (int x, int y) Coord;
+		public bool InRoom;
+		public bool Stationary;
+	}
+
 	public partial class FF1Rom : NesRom
 	{
 		public const int MapPointerOffset = 0x10000;
@@ -19,6 +134,57 @@ namespace FF1Lib
 		public const int TilesetDataOffset = 0x00800;
 		public const int TilesetDataSize = 2;
 		public const int TilesetDataCount = 128;
+		public const int TilesetCount = 8;
+
+		public const int MapObjJumpTableOffset = 0x390D3;
+		public const int JumpTablePointerSize = 2;
+		public const int MapObjOffset = 0x395D5;
+		public const int MapObjGfxOffset = 0x02E00;
+		public const int MapObjSize = 4;
+		public const int MapObjCount = 0xD0;
+
+		public const int FirstBossEncounterIndex = 0x73;
+
+		const ushort TalkFight = 0x94AA;
+
+		public void ShuffleTrapTiles(MT19337 rng, bool randomize)
+		{
+			// This is magic BNE code that enables formation 1 trap tiles but we have to change
+			// all the 0x0A 0x80 into 0x0A 0x00 and use 0x00 for random encounters instead of 0x80.
+			Data[0x7CDC5] = 0xD0;
+
+			bool IsBattleTile(Blob tuple) => tuple[0] == 0x0A;
+			bool IsRandomBattleTile(Blob tuple) => IsBattleTile(tuple) && (tuple[1] & 0x80) != 0x00;
+			bool IsNonBossTrapTile(Blob tuple) => IsBattleTile(tuple) && tuple[1] > 0 && tuple[1] < FirstBossEncounterIndex;
+
+			var tilesets = Get(TilesetDataOffset, TilesetDataCount * TilesetDataSize * TilesetCount).Chunk(TilesetDataSize).ToList();
+			List<byte> encounters;
+
+			if (randomize)
+			{
+				encounters = Enumerable.Range(128, FirstBossEncounterIndex).Select(value => (byte)value).ToList();
+				encounters.Add(0xFF); // IronGOL
+			}
+			else
+			{
+				var traps = tilesets.Where(IsNonBossTrapTile).ToList();
+				encounters = traps.Select(trap => trap[1]).ToList();
+			}
+
+			tilesets.ForEach(tile =>
+			{
+				if (IsNonBossTrapTile(tile))
+				{
+					tile[1] = encounters.SpliceRandom(rng);
+				}
+				else if (IsRandomBattleTile(tile))
+				{
+					tile[1] = 0x00;
+				}
+			});
+
+			Put(TilesetDataOffset, tilesets.SelectMany(tileset => tileset.ToBytes()).ToArray());
+		}
 
 		private struct OrdealsRoom
 		{
@@ -26,10 +192,8 @@ namespace FF1Lib
 			public List<(int, int)> Teleporters;
 		}
 
-		public void ShuffleOrdeals(MT19337 rng)
+		public void ShuffleOrdeals(MT19337 rng, List<Map> maps)
 		{
-			var maps = ReadMaps();
-
 			// Here are all the teleporter rooms except the one you start in.
 			// The last one is not normally accessible in the game.  We'll rewrite the teleporter located in that
 			// room to go TO that room, and then shuffle it into one of the other locations so that you can go
@@ -93,8 +257,7 @@ namespace FF1Lib
 
 			// First we choose a teleporter to link to the next room.
 			byte exit = 0x55;
-			const int OrdealsMapIndex = 25;
-			var map = maps[OrdealsMapIndex];
+			var map = maps[(byte)MapId.CastleOfOrdeals2F];
 			for (int i = 0; i < rooms.Count; i++)
 			{
 				int teleporter = rng.Between(0, rooms[i].Teleporters.Count - 1);
@@ -148,13 +311,40 @@ namespace FF1Lib
 				}
 			}
 
-			WriteMaps(maps);
-
 			// Now let's rewrite that teleporter.  The X coordinates are packed together, followed by the Y coordinates,
 			// followed by the map indices.  Maybe we'll make a data structure for that someday soon.
 			const byte LostTeleportIndex = 0x3C;
 			Put(TeleportOffset + LostTeleportIndex, new byte[] { 0x10 });
 			Put(TeleportOffset + TeleportCount + LostTeleportIndex, new byte[] { 0x12 });
+		}
+
+		public void ShuffleSkyCastle4F(MT19337 rng, List<Map> maps)
+		{
+			// Don't shuffle the return teleporter as Floor and Entrance shuffle might want to edit it.	
+			var map = maps[(byte)MapId.SkyPalace4F];
+			var upTeleporter = (x: 0x23, y: 0x23);
+			var dest = GetSkyCastleFloorTile(rng, map);
+			SwapTiles(map, upTeleporter, dest);
+		}
+
+		private (int x, int y) GetSkyCastleFloorTile(MT19337 rng, Map map)
+		{
+			int x, y;
+			do
+			{
+				x = rng.Between(0, 63);
+				y = rng.Between(0, 63);
+
+			} while (map[y, x] != 0x4B);
+
+			return (x, y);
+		}
+
+		private void SwapTiles(Map map, (int x, int y) src, (int x, int y) dest)
+		{
+			byte temp = map[dest.y, dest.x];
+			map[dest.y, dest.x] = map[src.y, src.x];
+			map[src.y, src.x] = temp;
 		}
 
 		public void EnableEarlyOrdeals()
@@ -173,11 +363,97 @@ namespace FF1Lib
 			Put(ordealsTilesetOffset, Blob.FromUShorts(ordealsTilesetData));
 		}
 
-		public void EnableTitansTrove()
-        {
-	        Put(0x03F41, Blob.FromHex("4408"));       // Move the Titan
-			Put(0x1ABC3, Blob.FromHex("3FBE03C104")); // Tweak the tunnel
-        }
+		public void EnableTitansTrove(List<Map> maps)
+		{
+			MoveNpc(MapId.TitansTunnel, 0, 4, 8, inRoom: false, stationary: true); // Move the Titan
+			maps[(byte)MapId.TitansTunnel][9, 3] = 0x3F; // Block the tunnel
+		}
+
+		public void WarMECHNpc(WarMECHMode mode, MT19337 rng, List<Map> maps)
+		{
+			const byte UnusedTextPointer = 0xF7;
+			const byte WarMECHEncounter = 0x56;
+			const byte RobotGfx = 0x15;
+
+			// Set up the map object.
+			Put(MapObjOffset + (byte)ObjectId.WarMECH * MapObjSize, new[] { (byte)ObjectId.WarMECH, UnusedTextPointer, (byte)0x00, WarMECHEncounter });
+			Data[MapObjGfxOffset + (byte)ObjectId.WarMECH] = RobotGfx;
+
+			// Set the action when you talk to WarMECH.
+			Put(MapObjJumpTableOffset + (byte)ObjectId.WarMECH * JumpTablePointerSize, Blob.FromUShorts(new[] { TalkFight }));
+
+			// Change the dialogue.
+			var dialogueStrings = new List<Blob>
+			{
+				TextToBytes("I. aM. WarMECH."),
+				Blob.Concat(TextToBytes("I think you ought to", delimiter: Delimiter.Line), TextToBytes("know, I'm feeling very", delimiter: Delimiter.Line), TextToBytes("depressed.")),
+				TextToBytes("Bite my shiny metal ass!"),
+				Blob.Concat(TextToBytes("Put down your weapons.", delimiter: Delimiter.Line), TextToBytes("You have 15 seconds to", delimiter: Delimiter.Line), TextToBytes("comply.")),
+				// Blob.Concat(TextToBytes("I'm sorry "), new byte[] { 0x03 }, TextToBytes(",", delimiter: Delimiter.Line), TextToBytes("I'm afraid I can't do that.")),
+				TextToBytes("rEsIsTaNcE iS fUtIlE."),
+				TextToBytes("Hasta la vista, baby."),
+				TextToBytes("NoOo DiSaSsEmBlE!"),
+				Blob.Concat(TextToBytes("Bring back life form.", delimiter: Delimiter.Line), TextToBytes("Priority one.", delimiter: Delimiter.Line), TextToBytes("All other priorities", delimiter: Delimiter.Line), TextToBytes("rescinded."))
+			};
+			ushort freeTextSpacePointer = 0xB487;
+			int pointerTarget = 0x20000 + freeTextSpacePointer;
+			Put(pointerTarget, dialogueStrings.PickRandom(rng));
+			Put(DialogueTextPointerOffset + 2 * UnusedTextPointer, Blob.FromUShorts(new[] { freeTextSpacePointer }));
+
+			// Get rid of random WarMECH encounters.  Group 8 is now also group 7.
+			var formationOffset = ZoneFormationsOffset + ZoneFormationsSize * (64 + (byte)MapId.SkyPalace5F);
+			var formations = Get(formationOffset, ZoneFormationsSize);
+			formations[6] = formations[7];
+			Put(formationOffset, formations);
+
+			MakeWarMECHUnrunnable();
+
+			if (mode == WarMECHMode.Required)
+			{
+				// Can't use mapNpcIndex 0, that's the Wind ORB.
+				SetNpc(MapId.SkyPalace5F, 1, ObjectId.WarMECH, 0x07, 0x0E, inRoom: false, stationary: true);
+
+				Data[0x029AB] = 0x14; // we can only change one color without messing up the Wind ORB.
+			}
+			else if (mode == WarMECHMode.Patrolling)
+			{
+				var (x, y) = GetSkyCastleFloorTile(rng, maps[(byte)MapId.SkyPalace4F]);
+				SetNpc(MapId.SkyPalace4F, 0, ObjectId.WarMECH, x, y, inRoom: false, stationary: false);
+
+				// We can change all the colors here.
+				Put(0x02978, Blob.FromHex("0F0F18140F0F1714"));
+			}
+		}
+
+		public void MoveNpc(MapId mapId, NPC npc)
+		{
+			MoveNpc(mapId, npc.Index, npc.Coord.x, npc.Coord.y, npc.InRoom, npc.Stationary);
+		}
+
+		public void MoveNpc(MapId mapId, int mapNpcIndex, int x, int y, bool inRoom, bool stationary)
+		{
+			int offset = MapSpriteOffset + ((byte)mapId * MapSpriteCount + mapNpcIndex) * MapSpriteSize;
+
+			byte firstByte = (byte)x;
+			firstByte |= (byte)(inRoom ? 0x80 : 0x00);
+			firstByte |= (byte)(stationary ? 0x40 : 0x00);
+
+			Data[offset + 1] = firstByte;
+			Data[offset + 2] = (byte)y;
+		}
+
+		public void SetNpc(MapId mapId, int mapNpcIndex, ObjectId mapObjId, int x, int y, bool inRoom, bool stationary)
+		{
+			int offset = MapSpriteOffset + ((byte)mapId * MapSpriteCount + mapNpcIndex) * MapSpriteSize;
+
+			byte firstByte = (byte)x;
+			firstByte |= (byte)(inRoom ? 0x80 : 0x00);
+			firstByte |= (byte)(stationary ? 0x40 : 0x00);
+
+			Data[offset] = (byte)mapObjId;
+			Data[offset + 1] = firstByte;
+			Data[offset + 2] = (byte)y;
+		}
 
 		public List<Map> ReadMaps()
 		{
@@ -203,5 +479,6 @@ namespace FF1Lib
 				Put(MapPointerOffset + pointers[i], data[i]);
 			}
 		}
+
 	}
 }

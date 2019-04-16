@@ -23,12 +23,12 @@ namespace FF1Lib
 		Cube = 14, // Unlocks single entrance
 		Bottle = 15, // Shop, shows an object
 		Oxyale = 16, // Hides an object
-
+		EarthOrb = 17, // Relocated from vanilla so the Shard can be contiguous with other counted items.
 		FireOrb = 18,
 		WaterOrb = 19,
 		AirOrb = 20,
-		EarthOrb = 21,
 
+		Shard = 21, // This Enum is only correct once ShiftEarthOrbDown() is called.
 		Tent = 22,
 		Cabin = 23,
 		House = 24,
@@ -46,7 +46,7 @@ namespace FF1Lib
 		Scimitar = 35,
 		IronNunchucks = 36,
 		LargeKnife = 37,
-		IronSword = 38,
+		IronStaff = 38,
 		Sabre = 39,
 		LongSword = 40,
 		GreatAxe = 41,
@@ -234,6 +234,8 @@ namespace FF1Lib
 		Sarda = 13,
 		Bahamut = 14,
 
+		WarMECH = 15, // This is for WarMECH NPC.  Unused in the original (seems to be a copy of BlackOrb).
+
 		SubEngineer = 16,
 		CubeBot = 17,
 		Princess2 = 18,
@@ -262,47 +264,6 @@ namespace FF1Lib
 
 		BlackOrb = 202
 	}
-
-	// These aren't actual values from the game code, just placeholders
-	public enum MapLocation
-	{
-		StartingLocation,
-		ConeriaTown,
-		ConeriaCastle,
-		TempleOfFiends,
-		MatoyasCave,
-		Pravoka,
-		DwarfCave,
-		ElflandTown,
-		ElflandCastle,
-		NorthwestCastle,
-		MarshCave,
-		Melmond,
-		EarthCave,
-		TitansTunnelEast,
-		TitansTunnelWest,
-		SardasCave,
-		CresentLake,
-		GurguVolcano,
-		IceCave,
-		CastleOrdeals,
-		Cardia1,
-		Cardia2,
-		Cardia3,
-		Cardia4,
-		Cardia5,
-		Cardia6,
-		Caravan,
-		Gaia,
-		Onrac,
-		Waterfall,
-		Lefein,
-		MirageTower,
-		BridgeLocation,
-		ShipLocation,
-		CanalLocation,
-		AirshipLocation
-	}
 	[Flags]
 	public enum MapChange
 	{
@@ -316,4 +277,13 @@ namespace FF1Lib
 		Chime = 0x40,
 		All = 0x7F
 	}
+
+	public static class Dock
+	{
+		public static byte[] Coneria = new byte[] { 0x98, 0xA9 };
+		public static byte[] DwarfCave = new byte[] { 0x79, 0x8B };
+		public static byte[] MatoyasCave = new byte[] { 0x9E, 0x8E };
+		public static byte[] Pravoka = new byte[] { 0xD2, 0x99 };
+		public static byte[] Elfland = new byte[] { 0x8D, 0xD3 };
+	};
 }

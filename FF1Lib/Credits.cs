@@ -111,24 +111,43 @@ namespace FF1Lib
 
 		// Story pages. The first set is before the credits.
 		// The second set is the ending cinematic with counters.
+		// Intentionally left blank in case we want to use it again.
 		private static readonly List<string[]> BridgeStory = new List<string[]>
+		{
+		};
+
+		private static readonly List<string[]> ThankYous = new List<string[]>
 		{
 			new []
 			{
 				"",
-				" Final  Fantasy ",
+				" Final  Fantasy",
+				"",
+				"   Randomizer",
 				"",
 				"",
-				"   Randomizer   ",
+				" Special Thanks",
+			},
+			new [] {
+				" Final Fantasy",
+				" Original Team",
+				"",
+				"   N A S I R",
+				"",
+				" Yoshitaka Amano",
+				" Kenji Terada",
+				" Square A-Team",
 			},
 			new []
 			{
-				"  Development   ",
+				" FFR Community",
 				"",
-				"  Entroper",
-				"  MeridianBC",
-				"  tartopan",
-				"  nitz",
+				"  Czardia",
+				"  Edgeworth",
+				"  ichbinmiah",
+				"  Taralyn",
+				"  Trinton",
+				"  xIceBlue",
 			},
 			new []
 			{
@@ -137,21 +156,44 @@ namespace FF1Lib
 				"jkoper, Kababesh",
 				"DarkwingDuck.sda",
 				"Miaut, Ayntlerz ",
-				"czardia,gameboy9",
+				"gameboy9, sbq92 ",
 				"EunosXX, Jaylow7",
 				"  theCubeMiser",
 				"  Beefucurry",
 			},
+			new [] {
+				"  Playtesting",
+				"",
+				"  Xarnax42",
+				"  TristalMTG",
+				"  PanzerDave",
+				"  Ategenos",
+				"  Buffalax",
+				"  crimsonavix",
+			},
+			new []
+			{
+				" Special Thanks",
+				"",
+				"fcoughlin, Disch",
+				"Paulygon, anomie",
+				"Derangedsquirrel",
+				"AstralEsper, and",
+				"",
+				" The Entire FFR ",
+				"    Community   ",
+			},
+			new []
+				{
+				"",
+				"",
+				"      AND",
+				"",
+				"",
+				"      YOU!",
+			},
 		};
 
-		private static readonly string[] ThankYou = new []
-		{
-			"",
-			"   Thank You",
-			"",
-			"",
-			"  For Playing!",
-		};
 
 		public void RollCredits(MT19337 rng)
 		{
@@ -184,6 +226,8 @@ namespace FF1Lib
 				Damage Taken:   $60B2 (24-bit)
 				Perished:       $64B5 (8-bit)
 				"Nothing Here": $60B6 (8-bit)
+				Chests Opened:  $60B7 (8-bit)
+				Can't Hold:     $60B9 (8-bit)
 			*/
 			Blob[] movementStats =
 			{
@@ -192,7 +236,10 @@ namespace FF1Lib
 				FF1Text.TextToBytes("Steps     ", true, FF1Text.Delimiter.Empty), Blob.FromHex("101003A0600405"),
 				FF1Text.TextToBytes("Resets    ", true, FF1Text.Delimiter.Empty), Blob.FromHex("101002A5640405"),
 				FF1Text.TextToBytes("Power off ", true, FF1Text.Delimiter.Empty), Blob.FromHex("101002A3640405"),
-				FF1Text.TextToBytes("Nthng Here", true, FF1Text.Delimiter.Empty), Blob.FromHex("101001B6600400"),
+				FF1Text.TextToBytes("Nthng Here", true, FF1Text.Delimiter.Empty), Blob.FromHex("101001B6600405"),
+				FF1Text.TextToBytes("Can't Hold", true, FF1Text.Delimiter.Empty), Blob.FromHex("101001B9600405"),
+				FF1Text.TextToBytes("Chests Opened", true, FF1Text.Delimiter.Line),
+				Blob.FromHex("FFFFFF101001B76004"), FF1Text.TextToBytes(" of 241", true, FF1Text.Delimiter.Null),
 			};
 
 			Blob[] battleResults =
@@ -220,7 +267,7 @@ namespace FF1Lib
 			pages.Add(Blob.Concat(movementStats));
 			pages.Add(Blob.Concat(battleResults));
 			pages.Add(Blob.Concat(combatStats));
-			pages.Add(FF1Text.TextToStory(ThankYou));
+			ThankYous.ForEach(page => pages.Add(FF1Text.TextToStory(page)));
 
 			Blob storyText = PackageTextBlob(pages, 0xA800);
 			System.Diagnostics.Debug.Assert(storyText.Length <= 0x0500, "Story text too large!");
@@ -241,28 +288,36 @@ namespace FF1Lib
 			// leading spaces are used to increment the PPU ptr precisely to save ROM space.
 			List<string[]> texts = new List<string[]>
 			{
-				new [] {
+				new []
+				{
 					"",
-					"  Playtesting   ",
 					"",
-					"  Xarnax42",
-					"  TristalMTG",
-					"  PanzerDave",
-					"  Ategenos",
-					"  Buffalax",
-					"  crimsonavix",
+					" Final  Fantasy",
+					"",
+					"",
+					"   Randomizer",
 				},
 				new []
 				{
-					" Special Thanks ",
 					"",
-					"fcoughlin, Disch",
-					"Paulygon, anomie",
-					"Derangedsquirrel",
-					"AstralEsper, and",
+					"Lead Development",
 					"",
-					" The Entire FFR ",
-					"    Community   ",
+					" Entroper",
+					" MeridianBC",
+					" nitz",
+					" Septimus",
+					" tartopan",
+				},
+				new []
+				{
+					"",
+					"  Contributors",
+					"",
+					" artea",
+					" drcatdoctor",
+					" leggystarscream",
+					" nic0lette",
+					" splitpunched",
 				},
 				new []
 				{
@@ -282,7 +337,7 @@ namespace FF1Lib
 			// Clobber the number of pages to render before we insert in the pointers.
 			Data[0x37873] = (byte)pages.Count;
 
-			Blob credits = PackageTextBlob(pages, 0xBB00); 
+			Blob credits = PackageTextBlob(pages, 0xBB00);
 			System.Diagnostics.Debug.Assert(credits.Length <= 0x0100, "Credits too large: " + credits.Length);
 			Put(0x37B00, credits);
 		}

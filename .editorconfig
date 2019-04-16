@@ -4,16 +4,19 @@ root = true
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-[*.{cs,xaml}]
+[*.{cs,xaml,cshtml}]
 indent_size = 4
 indent_style = tab
 end_of_line = crlf
 
-[*.{config,csproj}]
+[*.{csproj,yml,yaml}]
 indent_size = 2
 indent_style = space
 
-[*.{js,cshtml}]
+[*.{js,json}]
 indent_size = 4
 indent_style = tab
+end_of_line = lf
+
+[*.{sh}]
 end_of_line = lf

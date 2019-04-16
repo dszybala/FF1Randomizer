@@ -35,7 +35,7 @@ GiveReward:                    ; (8 bytes)
       DEC unsram, X            ; decrement DE0060
       BCS @OpenChest           ; and open it B003
 :   INC unsram, X              ; otherwise give them one of this item FE0060
-    CMP #$36                   ; if >= item_qty_start then play regular jingle C936
+    CMP #$31                   ; if >= item_canoe (shard) then play regular jingle C936
     BCS @ClearChest            ; B02A
     BCC @OpenChest             ; 902B
   @NotItem:                    ; (6 + 9 + 4 + 9 + 7 + 5 = 40 bytes)
@@ -66,7 +66,7 @@ GiveReward:                    ; (8 bytes)
   @TooFull:                    ; jump here with C set to show "Can't Hold" text and no jingle
     LDX #DLGID_TCGET           ; and select "In This chest you found..." text A2F0
     BCC :+                     ; 9004
-      INC $60B7                ; EEB760
+      INC $60B9                ; EEB760
       INX                      ; E8
 :   TXA                        ; 8A
-    RTS                        ; 60 
+    RTS                        ; 60

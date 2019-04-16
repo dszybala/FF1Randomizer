@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using RomUtilities;
@@ -8,9 +9,13 @@ namespace FF1Lib
 {
 	public enum MusicShuffle
 	{
+		[Description("No Music Shuffle")]
 		None = 0,
+		[Description("Standard Music Shuffle")]
 		Standard,
+		[Description("Nonsensical Music Shuffle")]
 		Nonsensical,
+		[Description("Disable Music")]
 		MusicDisabled
 	}
 
@@ -288,16 +293,14 @@ namespace FF1Lib
 			Put(0x3ADC2, Blob.FromHex("203ABFEAEAEAEAEAEAEAEA"));
 		}
 
-		public void SetBattleUI(bool useDynamicWindowColor)
+		public void EnableModernBattlefield()
 		{
-			// If changing the window color in the battle scene we need to ensure that
+			// Since we're changing the window color in the battle scene we need to ensure that
 			// $FF tile remains opaque like in the menu screen. That battle init code
-			// overwrites it with transparent so we skip that code here.
-			if (useDynamicWindowColor)
-			{
-				Put(0x7F369, Blob.FromHex("EAEAEAEAEAEAEAEAEAEAEAEAEAEAEAEAEA"));
-				Put(0x7EB90, Blob.FromHex("4C29EB"));
-			}
+			// overwrites it with transparent so we skip that code here. Since this is fast
+			// enough we end up saving a frame we add a wait for VBlank to take the same total time.
+			Put(0x7F369, Blob.FromHex("2000FEEAEAEAEAEAEAEAEAEAEAEAEAEAEA"));
+			Put(0x7EB90, Blob.FromHex("4C29EB"));
 
 			// Don't draw big battle boxes around the enemies, party, and individual stats.
 			// Instead draw one box in the lower right corner around the new player stats.
@@ -351,7 +354,7 @@ namespace FF1Lib
 			for (int i = 0; i < 8; ++i)
 			{
 				Data[0x31F85 + i * 2] = (byte)(xCoord - 0x10);            // X Coord of Character targeting cursor
-				Data[0x31F86 + i * 2] = (byte)(yCoord + 4 + (i * 0x1C));  // Y Coord of Character targeting cursor
+				Data[0x31F86 + i * 2] = (byte)(yCoord + 4 + ((i % 4) * 0x1C));  // Y Coord of Character targeting cursor
 				Data[0x31F76 + i * 2] = (byte)(0xA7 + (Math.Min(i, 4) % 4 * 0x10)); // Y Coord of Command Menu cursor (last four are identical)
 			}
 
@@ -368,14 +371,14 @@ namespace FF1Lib
 			/* ASM Snippet
 				LDY #$01        ; Need a one offset into
 				LDA ($82), Y    ; btl_ob_charstat_ptr + 1 is status
-				AND #$FE        ; Ignore dead bit - we'd rather print name
-				CMP #$0         ; emtpy byte means print name
-				BEQ skip
+				LSR             ; Shift dead bit to carry
+				BCS skip        ; If dead print name
+				BEQ skip        ; If healthy print name
 				LDY #$09        ; otherwise load 9 to print status string
 				skip:
 				JSR $AAFC       ; JSR DrawStatusRow
 			*/
-			Put(0x32AB0, Blob.FromHex("A001B18229FEC900F002A00920FCAAEAEAEAEAEA"));
+			Put(0x32AB0, Blob.FromHex("A001B1824AB004F002A00920FCAAEAEAEAEAEAEA"));
 
 			// Overwrite the upper portion of the default attribute table to all bg palette
 			Put(0x7F400, Blob.FromHex("0000000000000000"));
@@ -393,5 +396,45 @@ namespace FF1Lib
 				Data[0x2D320 + i] = 0x00;
 			}
 		}
+
+		public void UseVariablePaletteForCursorAndStone()
+		{
+			// The masamune uses the same palette as the cursor and stone characters
+			// so we can free up a whole palette if we reset the varies palette to
+			// the masmune palette after every swing and magic annimation. The only
+			// drawback is that stoned characters will flash with attacks and magic.
+
+			// Change UpdateVariablePalette to edit Palette 3
+			Data[0x32B35] = 0xA4;
+			Data[0x32B3B] = 0xA5;
+			Data[0x32B41] = 0xA6;
+			Data[0x32B46] = 0xA3;
+			Data[0x32B4E] = 0xA6;
+
+			// Make magic use palette 3
+			Data[0x318F0] = 0x03;
+
+			// Make sparks use palette 3
+			Data[0x33E47] = 0x03;
+
+			// Weapon palettes are embedded in this lut with their coordinates.
+			Put(0x3202C, Blob.FromHex("0001020303030303"));
+			Put(0x32034, Blob.FromHex("0100030243434343"));
+
+			// Increase loop variable to do 12 colors when fading sprites in and out for inn animation.
+			Data[0x7FF23] = 12;
+			Data[0x7FF43] = 12;
+			Data[0x7FF65] = 12;
+
+			// Enable this feature by rewriting the JSR BattleFrame inside UpdateSprites_BattleFrame
+			Put(0x31904, Blob.FromHex("20F1FD207CA060"));
+		}
+
+		public void DisableDamageTileFlicker()
+		{
+			Data[0x7C7E2] = 0xA9;
+		}
 	}
+
+
 }
